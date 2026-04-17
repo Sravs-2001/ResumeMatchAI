@@ -233,48 +233,12 @@ Return exactly:
     return result
 
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### ⚙️ Settings")
-    api_key = st.text_input(
-        "Anthropic API Key", type="password",
-        placeholder="sk-ant-...",
-        help="Get a free key at console.anthropic.com"
-    )
-    st.caption("Key is used only for this session — never stored.")
-    st.markdown("---")
-
-    st.markdown("### 🔬 Analysis Intensity")
-    intensity = st.slider("", 1, 10, 5, label_visibility="collapsed")
-
-    tier = intensity_to_tier(intensity)
-    tier_labels = {
-        "quick":    ("⚡ Quick Scan",    "#6b7280", "Haiku · Fast · Surface-level"),
-        "standard": ("✅ Standard",      "#3b82f6", "Haiku · Balanced · Transferable skills"),
-        "deep":     ("🔍 Deep Analysis", "#8b5cf6", "Haiku · Thorough · Projects & trajectory"),
-        "max":      ("🚀 Maximum",       "#ef4444", "Sonnet · Exhaustive · Every signal"),
-    }
-    label, color, desc = tier_labels[tier]
-    bar_pct = int((intensity / 10) * 100)
-
-    st.markdown(f"""
-    <div style="margin-top:4px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-            <span style="font-weight:600;color:{color};font-size:0.9rem">{label}</span>
-            <span style="font-size:0.8rem;color:#6b7280">{intensity}/10</span>
-        </div>
-        <div style="background:#f3f4f6;border-radius:999px;height:8px;width:100%">
-            <div style="width:{bar_pct}%;height:8px;border-radius:999px;
-                background:linear-gradient(90deg,#3b82f6,{color})"></div>
-        </div>
-        <div style="font-size:0.72rem;color:#6b7280;margin-top:5px">{desc}</div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown("**Prompt caching:** ✅ JD cached")
-    st.caption("JD cached after 1st call — subsequent resumes cheaper & faster.")
-
+# ── API key from Streamlit secrets or env ────────────────────────────────────
+def get_api_key():
+    try:
+        return st.secrets["ANTHROPIC_API_KEY"]
+    except Exception:
+        return os.environ.get("ANTHROPIC_API_KEY", "")
 
 # ── Main layout ───────────────────────────────────────────────────────────────
 left, right = st.columns([3, 2], gap="large")
@@ -289,17 +253,48 @@ with right:
     st.markdown('<p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#6b7280">📁 Upload Resumes ZIP</p>', unsafe_allow_html=True)
     zip_file = st.file_uploader("", type=["zip"], label_visibility="collapsed")
 
+    st.markdown('<div style="height:0.6rem"></div>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:#6b7280">🔬 Analysis Intensity</p>', unsafe_allow_html=True)
+    intensity = st.slider("", 1, 10, 5, label_visibility="collapsed")
+
+    tier = intensity_to_tier(intensity)
+    tier_labels = {
+        "quick":    ("⚡ Quick Scan",    "#6b7280", "Fast · Surface-level"),
+        "standard": ("✅ Standard",      "#3b82f6", "Balanced · Transferable skills"),
+        "deep":     ("🔍 Deep Analysis", "#8b5cf6", "Thorough · Projects & trajectory"),
+        "max":      ("🚀 Maximum",       "#ef4444", "Sonnet · Exhaustive · Every signal"),
+    }
+    label, color, desc = tier_labels[tier]
+    bar_pct = int((intensity / 10) * 100)
+
+    st.markdown(f"""
+    <div style="margin-top:2px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+            <span style="font-weight:600;color:{color};font-size:0.88rem">{label}</span>
+            <span style="font-size:0.78rem;color:#6b7280">{intensity}/10</span>
+        </div>
+        <div style="background:#f3f4f6;border-radius:999px;height:7px;width:100%">
+            <div style="width:{bar_pct}%;height:7px;border-radius:999px;
+                background:linear-gradient(90deg,#3b82f6,{color})"></div>
+        </div>
+        <div style="font-size:0.7rem;color:#9ca3af;margin-top:4px">{desc}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
 st.markdown("")
 run = st.button("🔍 Analyze Candidates with Claude", type="primary")
 
 if run:
-    if not api_key:
-        st.warning("Please enter your Anthropic API key in the sidebar. Get one free at console.anthropic.com")
-    elif not job_desc.strip():
+    if not job_desc.strip():
         st.warning("Please enter a job description.")
     elif zip_file is None:
         st.warning("Please upload a ZIP file of resumes.")
     else:
+        api_key = get_api_key()
+        if not api_key:
+            st.error("ANTHROPIC_API_KEY not configured. Add it in Streamlit Cloud → App Settings → Secrets.")
+            st.stop()
+
         with st.spinner("Reading resumes..."):
             resumes = parse_resumes_from_zip(zip_file.read())
 
@@ -367,58 +362,84 @@ if run:
                 st.markdown('<div style="height:1rem"></div>', unsafe_allow_html=True)
 
                 all_sorted = sorted(results, key=lambda x: -x["score"])
-                min_score = st.slider("Minimum match score to show", 0, 100, 40, 5, format="%d%%")
-                matched = [r for r in all_sorted if r["score"] >= min_score]
 
-                if matched:
-                    res_col, dl_col = st.columns([3, 1], gap="large")
+                # Human-like tiers — like a real recruiter's pile
+                shortlist = [r for r in all_sorted if r["score"] >= 70]
+                consider   = [r for r in all_sorted if 45 <= r["score"] < 70]
+                reject     = [r for r in all_sorted if r["score"] < 45]
 
-                    with res_col:
-                        st.markdown(f"### Candidates ({len(matched)} shown)")
-                        for i, r in enumerate(matched, 1):
+                res_col, dl_col = st.columns([3, 1], gap="large")
+
+                with res_col:
+                    def render_tier(candidates, tier_label, tier_color, rank_offset=0):
+                        if not candidates:
+                            return
+                        st.markdown(f"""
+                        <div style="display:flex;align-items:center;gap:10px;margin:1.2rem 0 0.5rem">
+                            <span style="font-size:1rem;font-weight:700;color:{tier_color}">{tier_label}</span>
+                            <span style="background:{tier_color}22;color:{tier_color};
+                                font-size:0.72rem;font-weight:600;padding:2px 8px;
+                                border-radius:999px">{len(candidates)} candidate{'s' if len(candidates)!=1 else ''}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                        for i, r in enumerate(candidates, rank_offset + 1):
                             s = r["score"]
-                            card_cls = "match-card" if s >= 70 else ("match-card good" if s >= 45 else "match-card partial")
-                            bar_color = "#10b981" if s >= 70 else ("#f59e0b" if s >= 45 else "#ef4444")
-
-                            skill_tags = "".join(
-                                f'<span class="tag tag-green">{sk}</span>'
-                                for sk in r["matched_skills"]
-                            )
-                            missing_tags = "".join(
-                                f'<span class="tag tag-red">✗ {m}</span>'
-                                for m in r["missing"]
-                            )
-                            verdict_tag = f'<span class="tag tag-purple">{r["verdict"]}</span>'
+                            skill_tags   = "".join(f'<span class="tag tag-green">{sk}</span>' for sk in r["matched_skills"])
+                            missing_tags = "".join(f'<span class="tag tag-red">✗ {m}</span>'   for m in r["missing"])
+                            verdict_tag  = f'<span class="tag tag-purple">{r["verdict"]}</span>'
+                            card_cls     = "match-card" if s >= 70 else ("match-card good" if s >= 45 else "match-card partial")
 
                             card_html = f"""
                             <div class="{card_cls}">
                                 <div style="display:flex;justify-content:space-between;align-items:center">
-                                    <span class="candidate-name">{i}. {r['name']}</span>
-                                    <span style="font-size:0.9rem;font-weight:700;color:{bar_color}">{s}%</span>
+                                    <span class="candidate-name">#{i} {r['name']}</span>
+                                    <span style="font-size:0.9rem;font-weight:700;color:{tier_color}">{s}%</span>
                                 </div>
                                 <div><span class="candidate-file">{r['file']}</span> {verdict_tag}</div>
                                 <div class="score-bar-bg">
-                                    <div class="score-bar-fill" style="width:{s}%;background:{bar_color}"></div>
+                                    <div class="score-bar-fill" style="width:{s}%;background:{tier_color}"></div>
                                 </div>
                                 <div class="highlight-text">💡 {r['highlights']}</div>
                                 <div class="reason-text">💬 {r['reason']}</div>
                                 <div style="margin-top:8px">{skill_tags}</div>
                                 <div style="margin-top:4px">{missing_tags}</div>
-                            </div>
-                            """
+                            </div>"""
                             st.markdown(card_html, unsafe_allow_html=True)
 
-                    with dl_col:
-                        st.markdown("### Download")
-                        zip_bytes = build_matched_zip(matched)
+                    render_tier(shortlist, "✅ Shortlist — Interview these",   "#10b981")
+                    render_tier(consider,  "🤔 Consider — Worth a closer look","#f59e0b", len(shortlist))
+                    render_tier(reject,    "❌ Pass — Not the right fit",       "#ef4444", len(shortlist)+len(consider))
+
+                with dl_col:
+                    st.markdown("### Download")
+                    if shortlist:
+                        zip_sl = build_matched_zip(shortlist)
                         st.download_button(
-                            label=f"⬇️ Download {len(matched)} Resumes",
-                            data=zip_bytes,
-                            file_name="matched_resumes.zip",
+                            label=f"⬇️ Shortlist ({len(shortlist)})",
+                            data=zip_sl,
+                            file_name="shortlist_resumes.zip",
                             mime="application/zip",
+                            key="dl_shortlist",
                         )
-                else:
-                    st.warning("No candidates at this score threshold. Lower the slider.")
+                    if consider:
+                        zip_co = build_matched_zip(consider)
+                        st.download_button(
+                            label=f"⬇️ Consider ({len(consider)})",
+                            data=zip_co,
+                            file_name="consider_resumes.zip",
+                            mime="application/zip",
+                            key="dl_consider",
+                        )
+                    if shortlist or consider:
+                        zip_all = build_matched_zip(shortlist + consider)
+                        st.download_button(
+                            label=f"⬇️ All Qualified ({len(shortlist)+len(consider)})",
+                            data=zip_all,
+                            file_name="qualified_resumes.zip",
+                            mime="application/zip",
+                            key="dl_all",
+                        )
 
 st.markdown("---")
 st.markdown('<p style="text-align:center;color:#9ca3af;font-size:0.78rem">ResumeMatch AI · Claude Haiku 4.5 · Prompt Caching · Streamlit Cloud</p>', unsafe_allow_html=True)
