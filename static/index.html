@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Resume Matcher AI</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="bg-blur"></div>
+
+  <header>
+    <div class="logo">
+      <span class="logo-icon">⚡</span>
+      <span>ResumeMatch<span class="accent">AI</span></span>
+    </div>
+    <p class="tagline">Drop a job description · Upload resumes · Get matched candidates instantly</p>
+  </header>
+
+  <main>
+    <form id="matchForm">
+
+      <!-- Job Description -->
+      <section class="card">
+        <div class="card-header">
+          <span class="step-badge">1</span>
+          <h2>Job Description</h2>
+        </div>
+        <textarea
+          id="jobDesc"
+          placeholder="Paste the full job description here…&#10;&#10;e.g. We are looking for a Python developer with 3+ years experience in FastAPI, ML pipelines, and cloud deployment..."
+          rows="8"
+          required
+        ></textarea>
+        <div class="char-count" id="charCount">0 characters</div>
+      </section>
+
+      <!-- Upload ZIP -->
+      <section class="card">
+        <div class="card-header">
+          <span class="step-badge">2</span>
+          <h2>Upload Resumes (ZIP)</h2>
+        </div>
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="zipFile" accept=".zip" hidden required />
+          <div class="drop-icon">📁</div>
+          <div class="drop-text">Drag & drop your ZIP here</div>
+          <div class="drop-sub">or click to browse &nbsp;·&nbsp; PDF, DOCX, TXT inside</div>
+          <div class="file-name" id="fileName"></div>
+        </div>
+      </section>
+
+      <!-- Sensitivity -->
+      <section class="card">
+        <div class="card-header">
+          <span class="step-badge">3</span>
+          <h2>Match Sensitivity</h2>
+        </div>
+        <div class="slider-row">
+          <span class="slider-label">Loose</span>
+          <input type="range" id="threshold" min="0.20" max="0.80" step="0.05" value="0.35" />
+          <span class="slider-label">Strict</span>
+          <span class="slider-value" id="thresholdVal">0.35</span>
+        </div>
+        <p class="slider-hint">Lower = more candidates shown &nbsp;|&nbsp; Higher = only strong matches</p>
+      </section>
+
+      <button type="submit" class="btn-primary" id="submitBtn">
+        <span class="btn-text">Find Matching Candidates</span>
+        <span class="btn-loader" hidden>
+          <span class="spinner"></span> Analyzing…
+        </span>
+      </button>
+    </form>
+
+    <!-- Results -->
+    <section id="results" hidden>
+      <div class="results-header">
+        <div class="results-stat" id="matchedStat"></div>
+        <button class="btn-reset" id="resetBtn">↩ New Search</button>
+      </div>
+
+      <div id="candidateList"></div>
+
+      <details class="all-results" id="allResultsSection">
+        <summary>Show all resumes with scores</summary>
+        <div id="allList"></div>
+      </details>
+    </section>
+
+    <div id="errorBox" class="error-box" hidden></div>
+  </main>
+
+  <footer>
+    Powered by <strong>sentence-transformers/all-MiniLM-L6-v2</strong> · No API key · 100% free
+  </footer>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
