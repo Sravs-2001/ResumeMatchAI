@@ -3,96 +3,313 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Resume Matcher AI</title>
+  <title>ResumeMatch AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
-  <div class="bg-blur"></div>
 
-  <header>
-    <div class="logo">
-      <span class="logo-icon">⚡</span>
-      <span>ResumeMatch<span class="accent">AI</span></span>
+  <!-- Animated canvas background -->
+  <canvas id="bgCanvas"></canvas>
+
+  <!-- Floating orbs -->
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+
+  <!-- ── HERO ── -->
+  <section class="hero" id="heroSection">
+    <div class="hero-badge">
+      <span class="badge-dot"></span>
+      AI-Powered · No API Key · 100% Free
     </div>
-    <p class="tagline">Drop a job description · Upload resumes · Get matched candidates instantly</p>
-  </header>
+    <h1 class="hero-title">
+      Find the <span class="gradient-text">Perfect Match</span><br/>between Jobs &amp; Resumes
+    </h1>
+    <p class="hero-sub">
+      Drop a job description and a ZIP of resumes.<br/>
+      Our AI ranks candidates by relevance — instantly.
+    </p>
+    <div class="hero-stats">
+      <div class="stat"><span class="stat-num">⚡</span><span class="stat-label">Instant Analysis</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><span class="stat-num">🔒</span><span class="stat-label">Private &amp; Local</span></div>
+      <div class="stat-divider"></div>
+      <div class="stat"><span class="stat-num">🎯</span><span class="stat-label">Semantic Matching</span></div>
+    </div>
+    <button class="btn-hero" onclick="scrollToApp()">
+      Get Started
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+    </button>
+  </section>
 
-  <main>
+  <!-- ── APP SECTION ── -->
+  <section class="app-section" id="appSection">
+
+    <!-- Step progress bar -->
+    <div class="step-progress">
+      <div class="step-track">
+        <div class="step-fill" id="stepFill"></div>
+      </div>
+      <div class="steps-row">
+        <div class="step-node active" data-step="1">
+          <div class="step-circle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </div>
+          <span>Job Description</span>
+        </div>
+        <div class="step-node" data-step="2">
+          <div class="step-circle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <span>Upload Resumes</span>
+        </div>
+        <div class="step-node" data-step="3">
+          <div class="step-circle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          </div>
+          <span>Match Settings</span>
+        </div>
+        <div class="step-node" data-step="4">
+          <div class="step-circle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <span>Results</span>
+        </div>
+      </div>
+    </div>
+
     <form id="matchForm">
 
-      <!-- Job Description -->
-      <section class="card">
-        <div class="card-header">
-          <span class="step-badge">1</span>
-          <h2>Job Description</h2>
+      <!-- Card 1: Job Description -->
+      <div class="glass-card" id="card1">
+        <div class="card-glow"></div>
+        <div class="card-inner">
+          <div class="card-label">
+            <div class="label-icon jd-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <div>
+              <h2>Job Description</h2>
+              <p>Paste the full job posting including skills, requirements, responsibilities</p>
+            </div>
+          </div>
+          <div class="textarea-wrap">
+            <textarea id="jobDesc" placeholder="e.g. We are looking for a Senior Python Developer with expertise in FastAPI, machine learning pipelines, Docker, and AWS. The ideal candidate has 4+ years of experience building scalable backend systems..." rows="7" required></textarea>
+            <div class="textarea-footer">
+              <div class="word-chips" id="wordChips"></div>
+              <span class="char-count" id="charCount">0 words</span>
+            </div>
+          </div>
+          <button type="button" class="btn-next" onclick="nextStep(2)">
+            Continue
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
         </div>
-        <textarea
-          id="jobDesc"
-          placeholder="Paste the full job description here…&#10;&#10;e.g. We are looking for a Python developer with 3+ years experience in FastAPI, ML pipelines, and cloud deployment..."
-          rows="8"
-          required
-        ></textarea>
-        <div class="char-count" id="charCount">0 characters</div>
-      </section>
+      </div>
 
-      <!-- Upload ZIP -->
-      <section class="card">
-        <div class="card-header">
-          <span class="step-badge">2</span>
-          <h2>Upload Resumes (ZIP)</h2>
-        </div>
-        <div class="drop-zone" id="dropZone">
+      <!-- Card 2: Upload -->
+      <div class="glass-card card-hidden" id="card2">
+        <div class="card-glow glow-green"></div>
+        <div class="card-inner">
+          <div class="card-label">
+            <div class="label-icon upload-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div>
+              <h2>Upload Resumes</h2>
+              <p>ZIP file containing PDF, DOCX, or TXT resumes</p>
+            </div>
+          </div>
+
           <input type="file" id="zipFile" accept=".zip" hidden required />
-          <div class="drop-icon">📁</div>
-          <div class="drop-text">Drag & drop your ZIP here</div>
-          <div class="drop-sub">or click to browse &nbsp;·&nbsp; PDF, DOCX, TXT inside</div>
-          <div class="file-name" id="fileName"></div>
-        </div>
-      </section>
+          <div class="drop-zone" id="dropZone">
+            <div class="drop-animation">
+              <div class="drop-circle dc1"></div>
+              <div class="drop-circle dc2"></div>
+              <div class="drop-circle dc3"></div>
+              <div class="drop-center-icon">
+                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              </div>
+            </div>
+            <div class="drop-text-group">
+              <span class="drop-main">Drop your ZIP file here</span>
+              <span class="drop-or">— or —</span>
+              <button type="button" class="btn-browse" onclick="document.getElementById('zipFile').click()">Browse Files</button>
+            </div>
+            <div class="drop-formats">
+              <span class="fmt-tag">PDF</span>
+              <span class="fmt-tag">DOCX</span>
+              <span class="fmt-tag">TXT</span>
+              <span class="fmt-info">inside ZIP</span>
+            </div>
+          </div>
 
-      <!-- Sensitivity -->
-      <section class="card">
-        <div class="card-header">
-          <span class="step-badge">3</span>
-          <h2>Match Sensitivity</h2>
-        </div>
-        <div class="slider-row">
-          <span class="slider-label">Loose</span>
-          <input type="range" id="threshold" min="0.20" max="0.80" step="0.05" value="0.35" />
-          <span class="slider-label">Strict</span>
-          <span class="slider-value" id="thresholdVal">0.35</span>
-        </div>
-        <p class="slider-hint">Lower = more candidates shown &nbsp;|&nbsp; Higher = only strong matches</p>
-      </section>
+          <div class="file-preview" id="filePreview" hidden>
+            <div class="file-preview-icon">📦</div>
+            <div class="file-preview-info">
+              <span class="file-preview-name" id="previewName"></span>
+              <span class="file-preview-size" id="previewSize"></span>
+            </div>
+            <button type="button" class="btn-remove" onclick="removeFile()">✕</button>
+          </div>
 
-      <button type="submit" class="btn-primary" id="submitBtn">
-        <span class="btn-text">Find Matching Candidates</span>
-        <span class="btn-loader" hidden>
-          <span class="spinner"></span> Analyzing…
-        </span>
-      </button>
+          <div class="btn-row">
+            <button type="button" class="btn-back" onclick="nextStep(1)">← Back</button>
+            <button type="button" class="btn-next" onclick="nextStep(3)">Continue →</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Settings -->
+      <div class="glass-card card-hidden" id="card3">
+        <div class="card-glow glow-purple"></div>
+        <div class="card-inner">
+          <div class="card-label">
+            <div class="label-icon settings-icon">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+            </div>
+            <div>
+              <h2>Match Sensitivity</h2>
+              <p>Fine-tune how strictly resumes must match the job</p>
+            </div>
+          </div>
+
+          <div class="sensitivity-visual">
+            <div class="sens-labels">
+              <span>Show More Candidates</span>
+              <span>Only Best Matches</span>
+            </div>
+            <div class="range-wrap">
+              <input type="range" id="threshold" min="0.20" max="0.80" step="0.05" value="0.35" />
+              <div class="range-markers">
+                <span>Loose</span><span>Balanced</span><span>Strict</span>
+              </div>
+            </div>
+            <div class="threshold-display">
+              <div class="threshold-ring" id="thresholdRing">
+                <svg viewBox="0 0 80 80">
+                  <circle cx="40" cy="40" r="34" class="ring-bg"/>
+                  <circle cx="40" cy="40" r="34" class="ring-fg" id="ringFg"/>
+                </svg>
+                <div class="ring-label" id="thresholdVal">35%</div>
+              </div>
+              <div class="threshold-desc" id="thresholdDesc">
+                <strong>Balanced</strong> — good mix of relevant and near-matches
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button type="button" class="btn-back" onclick="nextStep(2)">← Back</button>
+            <button type="submit" class="btn-analyze" id="submitBtn">
+              <span class="btn-text">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                Analyze Resumes
+              </span>
+              <span class="btn-loader" hidden>
+                <span class="spinner"></span>
+                <span id="loaderText">Analyzing…</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
     </form>
 
-    <!-- Results -->
-    <section id="results" hidden>
-      <div class="results-header">
-        <div class="results-stat" id="matchedStat"></div>
-        <button class="btn-reset" id="resetBtn">↩ New Search</button>
+    <!-- ── RESULTS ── -->
+    <div id="resultsSection" hidden>
+      <div class="results-hero">
+        <div class="results-hero-bg"></div>
+        <div class="results-summary">
+          <div class="summary-ring-wrap">
+            <svg class="summary-ring" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" class="sring-bg"/>
+              <circle cx="60" cy="60" r="50" class="sring-fg" id="summaryRing"/>
+            </svg>
+            <div class="summary-ring-text">
+              <span class="summary-matched" id="summaryMatched">0</span>
+              <span class="summary-total" id="summaryTotal">/ 0</span>
+              <span class="summary-label">matched</span>
+            </div>
+          </div>
+          <div class="summary-info">
+            <h2 id="summaryHeading">Results Ready</h2>
+            <p id="summaryDesc"></p>
+            <div class="summary-chips" id="summaryChips"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Matched candidates -->
+      <div class="section-heading">
+        <div class="sh-line"></div>
+        <span>Matched Candidates</span>
+        <div class="sh-line"></div>
       </div>
 
       <div id="candidateList"></div>
 
-      <details class="all-results" id="allResultsSection">
-        <summary>Show all resumes with scores</summary>
-        <div id="allList"></div>
+      <!-- No matches message -->
+      <div id="noMatchMsg" hidden class="no-match">
+        <div class="no-match-icon">🔍</div>
+        <h3>No candidates matched</h3>
+        <p>Try lowering the sensitivity slider for more results</p>
+      </div>
+
+      <!-- All scores table -->
+      <details class="all-panel" id="allPanel">
+        <summary>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          All Resumes — Full Scorecard
+        </summary>
+        <div class="all-table-wrap">
+          <div class="all-table-head">
+            <span>Candidate</span><span>File</span><span>Score</span><span>Status</span>
+          </div>
+          <div id="allList"></div>
+        </div>
       </details>
-    </section>
+
+      <button class="btn-new-search" onclick="newSearch()">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
+        New Search
+      </button>
+    </div>
 
     <div id="errorBox" class="error-box" hidden></div>
-  </main>
+  </section>
 
-  <footer>
-    Powered by <strong>sentence-transformers/all-MiniLM-L6-v2</strong> · No API key · 100% free
+  <!-- ── FEATURES STRIP ── -->
+  <section class="features-strip">
+    <div class="feature">
+      <div class="feature-icon">🧠</div>
+      <div class="feature-text">
+        <strong>Semantic Understanding</strong>
+        <span>Goes beyond keywords — understands meaning and context</span>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📄</div>
+      <div class="feature-text">
+        <strong>Multi-format Support</strong>
+        <span>PDF, DOCX, and TXT resumes in one ZIP</span>
+      </div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🚀</div>
+      <div class="feature-text">
+        <strong>Runs Locally</strong>
+        <span>No data sent to any server — fully private</span>
+      </div>
+    </div>
+  </section>
+
+  <footer class="site-footer">
+    <div class="footer-logo">⚡ ResumeMatch<span>AI</span></div>
+    <p>Powered by <code>sentence-transformers/all-MiniLM-L6-v2</code> · Deploy free on Render or HuggingFace Spaces</p>
   </footer>
 
   <script src="/static/script.js"></script>
