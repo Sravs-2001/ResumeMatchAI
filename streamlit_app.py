@@ -3,20 +3,32 @@ import zipfile
 import io
 import os
 import re
-from sentence_transformers import SentenceTransformer, util
 import pdfplumber
 import docx2txt
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(page_title="Resume Matcher", page_icon="📄", layout="centered")
 
+st.markdown("""
+    <style>
+    .main { background-color: #f8f9fb; }
+    .block-container { padding-top: 2rem; }
+    .stButton>button { width: 100%; border-radius: 8px; height: 3rem; font-size: 1rem; }
+    .candidate-card {
+        background: white;
+        border-left: 5px solid #4CAF50;
+        border-radius: 8px;
+        padding: 12px 18px;
+        margin-bottom: 10px;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("📄 Resume Job Matcher")
-st.markdown("Upload a **job description** and a **ZIP of resumes** — get only the matched candidates.")
-
-@st.cache_resource
-def load_model():
-    return SentenceTransformer("all-MiniLM-L6-v2")
-
-model = load_model()
+st.markdown("Upload a **job description** and **ZIP of resumes** — download only the best matched candidates.")
+st.markdown("---")
 
 
 def extract_text_from_pdf(file_bytes):
@@ -47,15 +59,11 @@ def extract_text_from_txt(file_bytes):
 
 
 def extract_name_from_text(text, filename):
-    """Try to extract candidate name from top lines of resume, fallback to filename."""
     lines = [l.strip() for l in text.splitlines() if l.strip()]
     for line in lines[:5]:
-        # A name is typically 2-4 words, no special chars, no digits
         if re.match(r"^[A-Za-z][a-zA-Z .'-]{3,40}$", line) and len(line.split()) >= 2:
             return line
-    # Fallback: use filename without extension
-    name = os.path.splitext(filename)[0].replace("_", " ").replace("-", " ").title()
-    return name
+    return os.path.splitext(filename)[0].replace("_", " ").replace("-", " ").title()
 
 
 def parse_resumes_from_zip(zip_bytes):
@@ -77,47 +85,98 @@ def parse_resumes_from_zip(zip_bytes):
                 continue
             if text:
                 candidate_name = extract_name_from_text(text, os.path.basename(name))
-                resumes.append({"name": candidate_name, "file": os.path.basename(name), "text": text})
+                resumes.append({"name": candidate_name, "file": os.path.basename(name), "text": text, "raw": raw})
     return resumes
 
 
+def build_matched_zip(matched):
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for r in matched:
+            zf.writestr(r["file"], r["raw"])
+    buf.seek(0)
+    return buf.read()
+
+
+def score_label(score):
+    if score >= 0.6:
+        return "🟢 Strong Match"
+    elif score >= 0.35:
+        return "🟡 Good Match"
+    else:
+        return "🟠 Partial Match"
+
+
 # --- UI ---
-job_desc = st.text_area("Paste Job Description here", height=200, placeholder="e.g. We are looking for a Python developer with 3+ years of experience...")
+col1, col2 = st.columns([1, 1])
 
-zip_file = st.file_uploader("Upload ZIP file of resumes (PDF / DOCX / TXT)", type=["zip"])
+with col1:
+    job_desc = st.text_area("📋 Paste Job Description", height=220,
+                            placeholder="e.g. Looking for a Python developer with 3+ years experience in ML...")
 
-threshold = st.slider("Match sensitivity (lower = more results)", 0.20, 0.80, 0.35, 0.05,
-                      help="Cosine similarity threshold. Raise it to be stricter.")
+with col2:
+    zip_file = st.file_uploader("📁 Upload ZIP of Resumes (PDF / DOCX / TXT)", type=["zip"])
 
-if st.button("Find Matching Candidates", type="primary"):
+    st.markdown("#### 🎯 Match Level")
+    match_level = st.radio(
+        "Select how strict the matching should be:",
+        options=["🟢 Best Matches Only", "🟡 Good Matches", "🟠 Show All Possible"],
+        index=1,
+        help="Best = very relevant only | Good = balanced | All = broader results"
+    )
+
+    threshold_map = {
+        "🟢 Best Matches Only": 0.50,
+        "🟡 Good Matches": 0.25,
+        "🟠 Show All Possible": 0.10,
+    }
+    threshold = threshold_map[match_level]
+
+st.markdown("---")
+
+if st.button("🔍 Find Matching Candidates", type="primary"):
     if not job_desc.strip():
-        st.warning("Please enter a job description.")
+        st.warning("⚠️ Please enter a job description.")
     elif zip_file is None:
-        st.warning("Please upload a ZIP file of resumes.")
+        st.warning("⚠️ Please upload a ZIP file of resumes.")
     else:
         with st.spinner("Analyzing resumes..."):
             resumes = parse_resumes_from_zip(zip_file.read())
             if not resumes:
-                st.error("No readable resumes found in the ZIP (support: PDF, DOCX, TXT).")
+                st.error("❌ No readable resumes found in the ZIP (supported: PDF, DOCX, TXT).")
             else:
-                jd_embedding = model.encode(job_desc, convert_to_tensor=True)
-                results = []
-                for r in resumes:
-                    res_embedding = model.encode(r["text"][:3000], convert_to_tensor=True)
-                    score = float(util.cos_sim(jd_embedding, res_embedding))
-                    results.append({**r, "score": score})
+                texts = [job_desc] + [r["text"][:3000] for r in resumes]
+                vectorizer = TfidfVectorizer(stop_words="english")
+                tfidf_matrix = vectorizer.fit_transform(texts)
+                scores = cosine_similarity(tfidf_matrix[0:1], tfidf_matrix[1:])[0]
 
-                matched = [r for r in results if r["score"] >= threshold]
-                matched.sort(key=lambda x: x["score"], reverse=True)
+                results = [{**r, "score": float(scores[i])} for i, r in enumerate(resumes)]
+                matched = sorted([r for r in results if r["score"] >= threshold], key=lambda x: -x["score"])
 
-                st.markdown("---")
                 if matched:
-                    st.success(f"✅ {len(matched)} candidate(s) matched out of {len(resumes)}")
-                    st.markdown("### Selected Candidates")
+                    st.success(f"✅ **{len(matched)} candidate(s) matched** out of {len(resumes)} resumes")
+
+                    st.markdown("### 👥 Matched Candidates")
                     for i, r in enumerate(matched, 1):
-                        st.markdown(f"**{i}. {r['name']}** &nbsp;&nbsp; `score: {r['score']:.2f}`")
+                        st.markdown(f"""
+                        <div class="candidate-card">
+                            <b>{i}. {r['name']}</b> &nbsp;&nbsp;
+                            <span style="color:gray; font-size:0.85rem">{r['file']}</span><br/>
+                            <span style="font-size:0.9rem">{score_label(r['score'])}</span>
+                        </div>
+                        """, unsafe_allow_html=True)
+
+                    st.markdown("")
+                    zip_bytes = build_matched_zip(matched)
+                    st.download_button(
+                        label="⬇️ Download Matched Resumes (ZIP)",
+                        data=zip_bytes,
+                        file_name="matched_resumes.zip",
+                        mime="application/zip",
+                        type="primary",
+                    )
                 else:
-                    st.warning(f"No candidates matched. {len(resumes)} resumes scanned. Try lowering the sensitivity.")
+                    st.warning(f"⚠️ No candidates matched. {len(resumes)} resumes scanned. Try **'Show All Possible'** match level.")
 
 st.markdown("---")
-st.caption("Powered by `sentence-transformers/all-MiniLM-L6-v2` · Deploy free on Hugging Face Spaces or Streamlit Cloud")
+st.caption("Powered by TF-IDF · Deployed on Streamlit Cloud")
